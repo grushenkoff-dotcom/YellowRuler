@@ -3,21 +3,22 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
 
-    @AppStorage("rulerWidthRatio") private var rulerWidthRatio = 0.33
-    @AppStorage("zeroOffsetMM") private var zeroOffsetMM = 0.0
-    @AppStorage("tickLength") private var tickLength = 18.0
-    @AppStorage("tickWidth") private var tickWidth = 2.0
-    @AppStorage("numberFontSize") private var numberFontSize = 28.0
-    @AppStorage("fontDesign") private var fontDesign = "rounded"
-    @AppStorage("fontWeight") private var fontWeight = "bold"
-    @AppStorage("showZeroSlider") private var showZeroSlider = true
-    @AppStorage("mmSpacing") private var mmSpacing = 10.0
-    @AppStorage("numberEveryMM") private var numberEveryMM = 10.0
-    @AppStorage("rulerColorMode") private var rulerColorMode = "yellow"
+    @AppStorage("rulerWidthRatio") private var rulerWidthRatio: Double = 0.33
+    @AppStorage("zeroOffsetMM") private var zeroOffsetMM: Double = 0
+    @AppStorage("tickLength") private var tickLength: Double = 18
+    @AppStorage("tickWidth") private var tickWidth: Double = 2
+    @AppStorage("numberFontSize") private var numberFontSize: Double = 28
+    @AppStorage("fontDesign") private var fontDesign: String = "rounded"
+    @AppStorage("fontWeight") private var fontWeight: String = "bold"
+    @AppStorage("showZeroSlider") private var showZeroSlider: Bool = true
+    @AppStorage("mmSpacing") private var mmSpacing: Double = 10
+    @AppStorage("numberEveryMM") private var numberEveryMM: Double = 10
+    @AppStorage("rulerColorMode") private var rulerColorMode: String = "yellow"
 
     var body: some View {
         NavigationStack {
             Form {
+
                 Section("Линейка") {
                     valueSlider(
                         title: "Ширина",
@@ -32,13 +33,24 @@ struct SettingsView: View {
                         value: $mmSpacing,
                         range: 4...20,
                         step: 0.5,
-                        valueText: String(format: "%.1f pt/мм", mmSpacing)
+                        valueText: String(
+                            format: "%.1f pt/мм",
+                            mmSpacing
+                        )
                     )
 
-                    Picker("Цвет", selection: $rulerColorMode) {
-                        Text("Жёлтый").tag("yellow")
-                        Text("Белый").tag("white")
-                        Text("Чёрный").tag("black")
+                    Picker(
+                        "Цвет",
+                        selection: $rulerColorMode
+                    ) {
+                        Text("Жёлтый")
+                            .tag("yellow")
+
+                        Text("Белый")
+                            .tag("white")
+
+                        Text("Чёрный")
+                            .tag("black")
                     }
                 }
 
@@ -51,7 +63,10 @@ struct SettingsView: View {
                         valueText: "\(Int(zeroOffsetMM)) мм"
                     )
 
-                    Toggle("Показывать ползунок нуля", isOn: $showZeroSlider)
+                    Toggle(
+                        "Показывать ползунок нуля",
+                        isOn: $showZeroSlider
+                    )
 
                     Button("Вернуть 0 в центр") {
                         zeroOffsetMM = 0
@@ -72,7 +87,10 @@ struct SettingsView: View {
                         value: $tickWidth,
                         range: 0.5...5,
                         step: 0.5,
-                        valueText: String(format: "%.1f pt", tickWidth)
+                        valueText: String(
+                            format: "%.1f pt",
+                            tickWidth
+                        )
                     )
                 }
 
@@ -85,15 +103,29 @@ struct SettingsView: View {
                         valueText: "\(Int(numberFontSize)) pt"
                     )
 
-                    Picker("Шрифт", selection: $fontDesign) {
-                        Text("Округлый").tag("rounded")
-                        Text("Моноширинный").tag("monospaced")
+                    Picker(
+                        "Шрифт",
+                        selection: $fontDesign
+                    ) {
+                        Text("Округлый")
+                            .tag("rounded")
+
+                        Text("Моноширинный")
+                            .tag("monospaced")
                     }
 
-                    Picker("Начертание", selection: $fontWeight) {
-                        Text("Обычный").tag("regular")
-                        Text("Полужирный").tag("semibold")
-                        Text("Жирный").tag("bold")
+                    Picker(
+                        "Начертание",
+                        selection: $fontWeight
+                    ) {
+                        Text("Обычный")
+                            .tag("regular")
+
+                        Text("Полужирный")
+                            .tag("semibold")
+
+                        Text("Жирный")
+                            .tag("bold")
                     }
 
                     valueSlider(
@@ -106,14 +138,19 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    Button("Сбросить все настройки", role: .destructive) {
+                    Button(
+                        "Сбросить все настройки",
+                        role: .destructive
+                    ) {
                         resetDefaults()
                     }
                 }
             }
             .navigationTitle("Настройки линейки")
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
+                ToolbarItem(
+                    placement: .confirmationAction
+                ) {
                     Button("Готово") {
                         dismiss()
                     }
@@ -122,7 +159,6 @@ struct SettingsView: View {
         }
     }
 
-    @ViewBuilder
     private func valueSlider(
         title: String,
         value: Binding<Double>,
@@ -130,16 +166,25 @@ struct SettingsView: View {
         step: Double,
         valueText: String
     ) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(
+            alignment: .leading,
+            spacing: 5
+        ) {
             HStack {
                 Text(title)
+
                 Spacer()
+
                 Text(valueText)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
             }
 
-            Slider(value: value, in: range, step: step)
+            Slider(
+                value: value,
+                in: range,
+                step: step
+            )
         }
         .padding(.vertical, 3)
     }
@@ -157,8 +202,4 @@ struct SettingsView: View {
         numberEveryMM = 10
         rulerColorMode = "yellow"
     }
-}
-
-#Preview {
-    SettingsView()
 }
