@@ -25,6 +25,8 @@ jobs:
 
       - name: Build
         run: |
+          rm -rf build Payload YellowRuler-unsigned.ipa
+
           xcodebuild \
             -project YellowRuler.xcodeproj \
             -scheme YellowRuler \
@@ -35,15 +37,94 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             clean build
 
+      - name: Fix and verify app
+        run: |
+          APP_PATH="build/Build/Products/Release-iphoneos/YellowRuler.app"
+          INFO_PLIST="$APP_PATH/Info.plist"
+          EXECUTABLE="$APP_PATH/YellowRuler"
+
+          echo "Checking application..."
+          test -d "$APP_PATH"
+          test -f "$INFO_PLIST"
+          test -f "$EXECUTABLE"
+
+          echo "Adding CFBundleExecutable..."
+          /usr/libexec/PlistBuddy \
+            -c "Add :CFBundleExecutable string YellowRuler" \
+            "$INFO_PLIST" || \
+          /usr/libexec/PlistBuddy \
+            -c "Set :CFBundleExecutable YellowRuler" \
+            "$INFO_PLIST"
+
+          echo "Setting bundle identifier..."
+          /usr/libexec/PlistBuddy \
+            -c "Set :CFBundleIdentifier com.example.YellowRuler" \
+            "$INFO_PLIST"
+
+          echo "Application Info.plist:"
+          /usr/libexec/PlistBuddy -c "Print" "$INFO_PLIST"
+
+          echo "Executable:"
+          file "$EXECUTABLE"
+
+          echo "Bundle contents:"
+          find "$APP_PATH" -maxdepth 2 -type f | sort
+
       - name: Package IPA
         run: |
+          APP_PATH="build/Build/Products/Release-iphoneos/YellowRuler.app"
+
           rm -rf Payload
           mkdir -p Payload
-          cp -R build/Build/Products/Release-iphoneos/YellowRuler.app Payload/
+
+          cp -R "$APP_PATH" Payload/YellowRuler.app
+
+          echo "IPA contents before packaging:"
+          find Payload/YellowRuler.app -maxdepth 2 -type f | sort
+
           zip -qry YellowRuler-unsigned.ipa Payload
+
+          echo "IPA created:"
+          ls -lh YellowRuler-unsigned.ipa
+
+      - name: Verify IPA
+        run: |
+          rm -rf verify_ipa
+          mkdir verify_ipa
+
+          unzip -q YellowRuler-unsigned.ipa -d verify_ipa
+
+          APP_PATH="verify_ipa/Payload/YellowRuler.app"
+          INFO_PLIST="$APP_PATH/Info.plist"
+          EXECUTABLE="$APP_PATH/YellowRuler"
+
+          echo "Verifying IPA structure..."
+
+          test -d "$APP_PATH"
+          test -f "$INFO_PLIST"
+          test -f "$EXECUTABLE"
+
+          echo "CFBundleExecutable:"
+          /usr/libexec/PlistBuddy \
+            -c "Print :CFBundleExecutable" \
+            "$INFO_PLIST"
+
+          echo "CFBundleIdentifier:"
+          /usr/libexec/PlistBuddy \
+            -c "Print :CFBundleIdentifier" \
+            "$INFO_PLIST"
+
+          echo "CFBundleName:"
+          /usr/libexec/PlistBuddy \
+            -c "Print :CFBundleName" \
+            "$INFO_PLIST"
+
+          echo "IPA verification successful."
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
           name: YellowRuler-IPA
           path: YellowRuler-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 7
