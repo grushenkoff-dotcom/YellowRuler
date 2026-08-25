@@ -5,8 +5,10 @@ struct RulerView: View {
 
     // MARK: - Настройки
 
-    @AppStorage("pixelsPerMillimeter")
-    private var pixelsPerMillimeter: Double = 0
+    // Реальный масштаб в POINTS на миллиметр.
+    // SwiftUI использует points, а не физические pixels.
+    @AppStorage("pointsPerMillimeter")
+    private var pointsPerMillimeter: Double = 6.0
 
     @AppStorage("rulerFont")
     private var rulerFont: String = "Monospaced"
@@ -32,20 +34,20 @@ struct RulerView: View {
 
         GeometryReader { geo in
 
-            let scale =
-                pixelsPerMillimeter > 0
-                ? pixelsPerMillimeter
-                : UIScreen.main.scale * 3.0
-
             ZStack {
 
-                // ВЕСЬ ФОН ПРОЗРАЧНЫЙ
+                // =====================================================
+                // ПРОЗРАЧНЫЙ ФОН
+                // =====================================================
+
                 Color.clear
                     .ignoresSafeArea()
 
                 VStack(spacing: 0) {
 
-                    // MARK: Верхнее меню
+                    // =================================================
+                    // ВЕРХНЯЯ ПАНЕЛЬ
+                    // =================================================
 
                     HStack {
 
@@ -57,12 +59,14 @@ struct RulerView: View {
                                     design: .monospaced
                                 )
                             )
+                            .foregroundStyle(.primary)
 
                         Spacer()
 
                         Button {
                             showSettings = true
                         } label: {
+
                             Image(systemName: "gearshape")
                                 .font(.system(size: 18))
                         }
@@ -82,70 +86,19 @@ struct RulerView: View {
 
                     Spacer()
 
-                    // MARK: Линейка
+                    // =================================================
+                    // ЛИНЕЙКА
+                    // =================================================
 
-                    ScrollView(
-                        .horizontal,
-                        showsIndicators: false
-                    ) {
-
-                        HStack(spacing: 0) {
-
-                            ForEach(0...150, id: \.self) { mm in
-
-                                VStack(spacing: 5) {
-
-                                    // Штрих
-
-                                    Rectangle()
-                                        .fill(.black)
-                                        .frame(
-                                            width: 1,
-                                            height:
-                                                mm % 10 == 0
-                                                ? 72
-                                                : (mm % 5 == 0 ? 52 : 30)
-                                        )
-
-                                    // Число
-
-                                    if mm % 10 == 0 {
-
-                                        Text("\(mm)")
-                                            .font(
-                                                rulerFontValue(
-                                                    size: rulerFontSize
-                                                )
-                                            )
-                                            .frame(
-                                                width: max(1, scale),
-                                                alignment: .center
-                                            )
-                                            .multilineTextAlignment(.center)
-                                    }
-                                }
-
-                                // Каждый миллиметр имеет
-                                // строго одинаковую ширину
-                                .frame(
-                                    width: max(1, scale),
-                                    alignment: .center
-                                )
-                            }
-                        }
-                    }
-                    // ВАЖНО:
-                    // ширина области линейки = 1/3 экрана
-                    .frame(
-                        width: geo.size.width / 3,
-                        height: 105
-                    )
-                    .background(
-                        Color.yellow
-                    )
-                    .clipShape(
-                        Rectangle()
-                    )
+                    rulerView
+                        .frame(
+                            width: geo.size.width / 3,
+                            height: 110
+                        )
+                        .background(
+                            Color.yellow
+                        )
+                        .clipped()
 
                     Spacer()
 
@@ -157,12 +110,15 @@ struct RulerView: View {
                                 design: .monospaced
                             )
                         )
+                        .foregroundStyle(.secondary)
                         .padding(.bottom, 10)
                 }
             }
         }
 
-        // MARK: Настройки
+        // =============================================================
+        // НАСТРОЙКИ
+        // =============================================================
 
         .sheet(isPresented: $showSettings) {
 
@@ -174,15 +130,17 @@ struct RulerView: View {
             .presentationDetents([.medium])
         }
 
-        // MARK: Калибровка
+        // =============================================================
+        // КАЛИБРОВКА
+        // =============================================================
 
         .sheet(isPresented: $showCalibration) {
 
             CalibrationView(
-                current: pixelsPerMillimeter
+                current: pointsPerMillimeter
             ) { value in
 
-                pixelsPerMillimeter = value
+                pointsPerMillimeter = value
                 showCalibration = false
             }
             .presentationDetents([.medium])
@@ -191,7 +149,111 @@ struct RulerView: View {
         .preferredColorScheme(.light)
     }
 
-    // MARK: - Шрифт
+    // MARK: - Линейка
+
+    private var rulerView: some View {
+
+        ScrollView(
+            .horizontal,
+            showsIndicators: false
+        ) {
+
+            HStack(
+                spacing: 0
+            ) {
+
+                ForEach(0...150, id: \.self) { mm in
+
+                    rulerMillimeter(mm)
+                }
+            }
+        }
+        .scrollIndicators(.hidden)
+    }
+
+    // MARK: - Один миллиметр
+
+    private func rulerMillimeter(
+        _ mm: Int
+    ) -> some View {
+
+        VStack(
+            spacing: 4
+        ) {
+
+            Spacer(
+                minLength: 0
+            )
+
+            // =========================================================
+            // ШТРИХ
+            // =========================================================
+
+            Rectangle()
+                .fill(.black)
+                .frame(
+                    width: 1,
+                    height: tickHeight(mm)
+                )
+
+            // =========================================================
+            // ЧИСЛО
+            // =========================================================
+
+            if mm % 10 == 0 {
+
+                Text("\(mm)")
+                    .font(
+                        rulerFontValue(
+                            size: rulerFontSize
+                        )
+                    )
+                    .foregroundStyle(.black)
+                    .frame(
+                        width: pointsPerMillimeter * 10,
+                        alignment: .center
+                    )
+                    .multilineTextAlignment(.center)
+
+            } else {
+
+                // Пустое место той же высоты,
+                // чтобы все штрихи располагались одинаково.
+
+                Color.clear
+                    .frame(
+                        height: rulerFontSize + 4
+                    )
+            }
+
+            Spacer(
+                minLength: 0
+            )
+        }
+        .frame(
+            width: pointsPerMillimeter,
+            height: 110
+        )
+    }
+
+    // MARK: - Высота штриха
+
+    private func tickHeight(
+        _ mm: Int
+    ) -> CGFloat {
+
+        if mm % 10 == 0 {
+            return 62
+        }
+
+        if mm % 5 == 0 {
+            return 46
+        }
+
+        return 28
+    }
+
+    // MARK: - Шрифт линейки
 
     private func rulerFontValue(
         size: Double
@@ -200,6 +262,7 @@ struct RulerView: View {
         switch rulerFont {
 
         case "Monospaced":
+
             return .system(
                 size: size,
                 weight: .medium,
@@ -207,6 +270,7 @@ struct RulerView: View {
             )
 
         case "Serif":
+
             return .system(
                 size: size,
                 weight: .medium,
@@ -214,6 +278,7 @@ struct RulerView: View {
             )
 
         case "Rounded":
+
             return .system(
                 size: size,
                 weight: .medium,
@@ -221,6 +286,7 @@ struct RulerView: View {
             )
 
         default:
+
             return .system(
                 size: size,
                 weight: .medium,
@@ -249,7 +315,9 @@ struct SettingsView: View {
 
             Form {
 
-                // MARK: Шрифт
+                // =====================================================
+                // ШРИФТ
+                // =====================================================
 
                 Section("Шрифт чисел") {
 
@@ -258,7 +326,10 @@ struct SettingsView: View {
                         selection: $selectedFont
                     ) {
 
-                        ForEach(fonts, id: \.self) { font in
+                        ForEach(
+                            fonts,
+                            id: \.self
+                        ) { font in
 
                             Text(font)
                                 .tag(font)
@@ -266,7 +337,9 @@ struct SettingsView: View {
                     }
                 }
 
-                // MARK: Размер
+                // =====================================================
+                // РАЗМЕР
+                // =====================================================
 
                 Section("Размер чисел") {
 
@@ -288,7 +361,9 @@ struct SettingsView: View {
                         step: 1
                     )
 
+                    // -------------------------------------------------
                     // Предпросмотр
+                    // -------------------------------------------------
 
                     HStack {
 
@@ -320,12 +395,14 @@ struct SettingsView: View {
                     .padding(.vertical, 8)
                 }
 
-                // MARK: Информация
+                // =====================================================
+                // ИНФОРМАЦИЯ
+                // =====================================================
 
                 Section {
 
                     Text(
-                        "Линейка занимает одну треть ширины экрана. Остальная область прозрачная."
+                        "Линейка занимает одну треть ширины экрана. Остальная область остаётся прозрачной."
                     )
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -349,6 +426,8 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: - Preview Font
+
     private func previewFont(
         size: Double
     ) -> Font {
@@ -356,6 +435,7 @@ struct SettingsView: View {
         switch selectedFont {
 
         case "Monospaced":
+
             return .system(
                 size: size,
                 weight: .medium,
@@ -363,6 +443,7 @@ struct SettingsView: View {
             )
 
         case "Serif":
+
             return .system(
                 size: size,
                 weight: .medium,
@@ -370,6 +451,7 @@ struct SettingsView: View {
             )
 
         case "Rounded":
+
             return .system(
                 size: size,
                 weight: .medium,
@@ -377,6 +459,7 @@ struct SettingsView: View {
             )
 
         default:
+
             return .system(
                 size: size,
                 weight: .medium,
@@ -396,7 +479,7 @@ struct CalibrationView: View {
     let onSave: (Double) -> Void
 
     @State private var millimeters = "100"
-    @State private var pixels = ""
+    @State private var points = ""
 
     @Environment(\.dismiss)
     private var dismiss
@@ -407,63 +490,102 @@ struct CalibrationView: View {
 
             Form {
 
+                // =====================================================
+                // ИНСТРУКЦИЯ
+                // =====================================================
+
                 Section("Калибровка") {
 
                     Text(
-                        "Положи на экран обычную линейку или банковскую карту и измерь, сколько пикселей соответствует известной длине."
+                        "Положи на экран обычную линейку. Укажи длину отрезка в миллиметрах и его длину в points на экране."
                     )
+
+                    Text(
+                        "Например: если 100 мм на экране занимают 600 points, введи 100 и 600."
+                    )
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                }
+
+                // =====================================================
+                // МИЛЛИМЕТРЫ
+                // =====================================================
+
+                Section {
 
                     TextField(
                         "Длина в мм",
                         text: $millimeters
                     )
-                    .keyboardType(.decimalPad)
+                    .keyboardType(
+                        .decimalPad
+                    )
 
                     TextField(
-                        "Длина в пикселях",
-                        text: $pixels
+                        "Длина в points",
+                        text: $points
                     )
-                    .keyboardType(.decimalPad)
+                    .keyboardType(
+                        .decimalPad
+                    )
                 }
 
-                if current > 0 {
+                // =====================================================
+                // ТЕКУЩЕЕ ЗНАЧЕНИЕ
+                // =====================================================
 
-                    Section {
+                Section {
 
-                        Text(
-                            "Текущее значение: \(current, specifier: "%.3f") px/мм"
-                        )
-                    }
+                    Text(
+                        "Текущий масштаб: \(current, specifier: "%.3f") pt/мм"
+                    )
                 }
+
+                // =====================================================
+                // СОХРАНИТЬ
+                // =====================================================
 
                 Section {
 
                     Button("Сохранить") {
 
+                        let mmString =
+                            millimeters
+                                .replacingOccurrences(
+                                    of: ",",
+                                    with: "."
+                                )
+
+                        let pointsString =
+                            points
+                                .replacingOccurrences(
+                                    of: ",",
+                                    with: "."
+                                )
+
                         guard
 
                             let mm = Double(
-                                millimeters.replacingOccurrences(
-                                    of: ",",
-                                    with: "."
-                                )
+                                mmString
                             ),
 
-                            let px = Double(
-                                pixels.replacingOccurrences(
-                                    of: ",",
-                                    with: "."
-                                )
+                            let pt = Double(
+                                pointsString
                             ),
 
                             mm > 0,
-                            px > 0
+                            pt > 0
 
                         else {
                             return
                         }
 
-                        onSave(px / mm)
+                        let result =
+                            pt / mm
+
+                        onSave(
+                            result
+                        )
                     }
                 }
             }
