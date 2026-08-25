@@ -27,7 +27,7 @@ jobs:
         run: |
           xcodebuild \
             -project YellowRuler.xcodeproj \
-            -target YellowRuler \
+            -scheme YellowRuler \
             -configuration Release \
             -sdk iphoneos \
             -derivedDataPath build \
