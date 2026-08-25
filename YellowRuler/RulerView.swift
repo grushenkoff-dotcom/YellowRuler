@@ -398,16 +398,11 @@ struct CalibrationView: View {
                     .keyboardType(.decimalPad)
                 }
 
-                if current > 0 {
-
-                    Section {
-
-                        Text(
-                            "Текущее значение: " +
-                            "\(current, specifier: "%.3f") px/мм"
-                        )
-                    }
-                }
+               if current > 0 {
+    Section {
+        Text("Текущее значение: \(current, specifier: "%.3f") px/мм")
+    }
+}
 
                 Section {
 
