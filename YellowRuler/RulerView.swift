@@ -2,311 +2,364 @@ import SwiftUI
 
 struct RulerView: View {
 
-    // Положение нулевой отметки в миллиметрах.
-    // 0 = нижний край экрана.
-    // Значение сохраняется между запусками.
+    // MARK: - Настройки
+
+    /// Смещение нулевой отметки вверх от нижнего края экрана.
+    /// 0 = ноль точно на нижнем краю.
     @AppStorage("zeroOffsetMM")
     private var zeroOffsetMM: Double = 0
 
     @State private var showZeroSlider = false
 
-    // iPhone 17:
-    // дисплей 402 × 874 pt, диагональ 6.3".
-    //
-    // Физическая высота активной области дисплея ≈ 145.3 мм.
-    // Поэтому:
-    // 874 pt / 145.3 мм ≈ 6.02 pt/мм
-    //
-    // Используем фиксированное значение, чтобы линейка
-    // не требовала ручной калибровки.
+    /// Физический масштаб дисплея iPhone 17.
+    /// 874 pt ≈ 145.3 мм
+    /// 874 / 145.3 ≈ 6.02 pt/mm
     private let pointsPerMillimeter: CGFloat = 6.02
 
-    // Жёлтая часть занимает четверть экрана.
+    /// Линейка занимает четверть ширины экрана.
     private let rulerWidthRatio: CGFloat = 0.25
+
+    // MARK: - Body
 
     var body: some View {
 
-        GeometryReader { geo in
+        GeometryReader { geometry in
 
-            let screenWidth = geo.size.width
-            let screenHeight = geo.size.height
+            let width = geometry.size.width
+            let height = geometry.size.height
 
-            let rulerWidth = screenWidth * rulerWidthRatio
+            let rulerWidth = width * rulerWidthRatio
 
-            // Положение нуля в экранных точках.
+            // Нижний край экрана = 0 мм.
             //
-            // При 0 мм ноль находится ровно внизу.
-            // При увеличении значения ноль поднимается вверх.
+            // Если zeroOffsetMM = 0:
+            // zeroY находится в самом низу.
+            //
+            // Если zeroOffsetMM = 10:
+            // нулевая отметка поднимается на 10 мм.
             let zeroY =
-                screenHeight -
-                CGFloat(zeroOffsetMM) * pointsPerMillimeter
+                height
+                - CGFloat(zeroOffsetMM) * pointsPerMillimeter
 
             ZStack(alignment: .topLeading) {
 
-                // Белый фон всего экрана
+                // -------------------------------------------------
+                // БЕЛЫЙ ФОН
+                // -------------------------------------------------
+
                 Color.white
                     .ignoresSafeArea()
+
 
                 // -------------------------------------------------
                 // ЖЁЛТАЯ ЛИНЕЙКА
                 // -------------------------------------------------
 
-                Canvas { context, size in
-
-                    // Жёлтый фон линейки
-                    context.fill(
-                        Path(
-                            CGRect(
-                                x: 0,
-                                y: 0,
-                                width: rulerWidth,
-                                height: size.height
-                            )
-                        ),
-                        with: .color(Color.yellow)
+                Rectangle()
+                    .fill(Color.yellow)
+                    .frame(
+                        width: rulerWidth,
+                        height: height
+                    )
+                    .position(
+                        x: rulerWidth / 2,
+                        y: height / 2
                     )
 
-                    // Сколько миллиметров помещается на экране
-                    let visibleMillimeters =
-                        Int(ceil(Double(screenHeight) /
-                                 Double(pointsPerMillimeter))) + 2
 
-                    for mm in 0...visibleMillimeters {
+                // -------------------------------------------------
+                // ШТРИХИ
+                // -------------------------------------------------
 
-                        // Положение конкретной отметки.
-                        //
-                        // 0 мм находится в zeroY.
-                        // 1 мм выше на pointsPerMillimeter.
-                        let y =
-                            zeroY -
-                            CGFloat(mm) * pointsPerMillimeter
-
-                        // Не рисуем то, что полностью за экраном.
-                        guard y >= -2 && y <= screenHeight + 2 else {
-                            continue
-                        }
-
-                        let isTen = mm % 10 == 0
-                        let isFive = mm % 5 == 0
-
-                        // Длина штриха.
-                        //
-                        // Штрихи идут от обоих краёв к центру.
-                        let tickLength: CGFloat
-
-                        if isTen {
-                            tickLength = rulerWidth * 0.30
-                        } else if isFive {
-                            tickLength = rulerWidth * 0.22
-                        } else {
-                            tickLength = rulerWidth * 0.13
-                        }
-
-                        let lineWidth: CGFloat =
-                            isTen ? 2.0 : 1.2
-
-                        // -------------------------------------------------
-                        // ЛЕВЫЙ ШТРИХ
-                        // -------------------------------------------------
-
-                        var leftPath = Path()
-
-                        leftPath.move(
-                            to: CGPoint(
-                                x: 0,
-                                y: y
-                            )
-                        )
-
-                        leftPath.addLine(
-                            to: CGPoint(
-                                x: tickLength,
-                                y: y
-                            )
-                        )
-
-                        context.stroke(
-                            leftPath,
-                            with: .color(.black),
-                            lineWidth: lineWidth
-                        )
-
-                        // -------------------------------------------------
-                        // ПРАВЫЙ ШТРИХ
-                        // -------------------------------------------------
-
-                        var rightPath = Path()
-
-                        rightPath.move(
-                            to: CGPoint(
-                                x: rulerWidth,
-                                y: y
-                            )
-                        )
-
-                        rightPath.addLine(
-                            to: CGPoint(
-                                x: rulerWidth - tickLength,
-                                y: y
-                            )
-                        )
-
-                        context.stroke(
-                            rightPath,
-                            with: .color(.black),
-                            lineWidth: lineWidth
-                        )
-                    }
-                }
+                RulerTicks(
+                    rulerWidth: rulerWidth,
+                    screenHeight: height,
+                    zeroY: zeroY,
+                    pointsPerMillimeter: pointsPerMillimeter
+                )
                 .frame(
                     width: rulerWidth,
-                    height: screenHeight
+                    height: height,
+                    alignment: .topLeading
                 )
+
 
                 // -------------------------------------------------
                 // ЦИФРЫ
                 // -------------------------------------------------
 
-                ForEach(
-                    stride(
-                        from: 0,
-                        through: 200,
-                        by: 10
-                    ),
-                    id: \.self
-                ) { mm in
-
-                    let y =
-                        zeroY -
-                        CGFloat(mm) * pointsPerMillimeter
-
-                    // Небольшой запас, чтобы цифры не появлялись
-                    // за пределами экрана.
-                    if y > -40 && y < screenHeight + 40 {
-
-                        Text("\(mm)")
-                            .font(
-                                .system(
-                                    size: 25,
-                                    weight: .bold,
-                                    design: .monospaced
-                                )
-                            )
-                            .foregroundStyle(.black)
-                            .frame(
-                                width: rulerWidth,
-                                height: 32
-                            )
-                            .position(
-                                x: rulerWidth / 2,
-                                y: y
-                            )
-                    }
-                }
-
-                // -------------------------------------------------
-                // ПЕРЕКЛЮЧАТЕЛЬ ПОЛЗУНКА
-                // -------------------------------------------------
-
-                VStack {
-                    Spacer()
-
-                    HStack {
-
-                        Spacer()
-
-                        Button {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                showZeroSlider.toggle()
-                            }
-                        } label: {
-                            Image(systemName: "slider.horizontal.3")
-                                .font(.system(size: 20, weight: .semibold))
-                                .foregroundStyle(.black)
-                                .frame(
-                                    width: 46,
-                                    height: 46
-                                )
-                                .background(
-                                    Color.white.opacity(0.92)
-                                )
-                                .clipShape(Circle())
-                                .shadow(
-                                    color: .black.opacity(0.15),
-                                    radius: 5
-                                )
-                        }
-
-                        if showZeroSlider {
-
-                            // -------------------------------------------------
-                            // ПОЛЗУНОК НУЛЯ
-                            // -------------------------------------------------
-
-                            VStack(spacing: 4) {
-
-                                Text(
-                                    "0: \(zeroOffsetMM, specifier: "%.0f") мм"
-                                )
-                                .font(
-                                    .system(
-                                        size: 13,
-                                        weight: .semibold,
-                                        design: .rounded
-                                    )
-                                )
-                                .foregroundStyle(.black)
-
-                                Slider(
-                                    value: Binding(
-                                        get: {
-                                            zeroOffsetMM
-                                        },
-                                        set: { newValue in
-                                            zeroOffsetMM = newValue
-                                        }
-                                    ),
-                                    in: 0...80,
-                                    step: 1
-                                )
-                                .frame(width: 190)
-                                .tint(.black)
-                            }
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 9)
-                            .background(
-                                Color.white.opacity(0.95)
-                            )
-                            .clipShape(
-                                RoundedRectangle(
-                                    cornerRadius: 14
-                                )
-                            )
-                            .shadow(
-                                color: .black.opacity(0.18),
-                                radius: 8
-                            )
-                        }
-
-                        Spacer()
-                    }
-                    .padding(.bottom, 24)
-                }
+                RulerNumbers(
+                    rulerWidth: rulerWidth,
+                    screenHeight: height,
+                    zeroY: zeroY,
+                    pointsPerMillimeter: pointsPerMillimeter
+                )
                 .frame(
-                    width: screenWidth,
-                    height: screenHeight
+                    width: rulerWidth,
+                    height: height,
+                    alignment: .topLeading
+                )
+
+
+                // -------------------------------------------------
+                // ПАНЕЛЬ ПОЛЗУНКА
+                // -------------------------------------------------
+
+                if showZeroSlider {
+
+                    ZeroSliderPanel(
+                        value: $zeroOffsetMM
+                    )
+                    .position(
+                        x: width / 2,
+                        y: height - 55
+                    )
+                }
+
+
+                // -------------------------------------------------
+                // КНОПКА ПОЛЗУНКА
+                // -------------------------------------------------
+
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showZeroSlider.toggle()
+                    }
+                } label: {
+
+                    Image(systemName: "slider.horizontal.3")
+                        .font(
+                            .system(
+                                size: 20,
+                                weight: .semibold
+                            )
+                        )
+                        .foregroundStyle(.black)
+                        .frame(
+                            width: 46,
+                            height: 46
+                        )
+                        .background(
+                            Color.white.opacity(0.92)
+                        )
+                        .clipShape(Circle())
+                        .shadow(
+                            color: .black.opacity(0.15),
+                            radius: 5
+                        )
+                }
+                .position(
+                    x: width - 32,
+                    y: height - 32
                 )
             }
             .frame(
-                width: screenWidth,
-                height: screenHeight
+                width: width,
+                height: height
             )
         }
-
-        // Полностью убираем системные края.
         .ignoresSafeArea()
-
-        // Белый интерфейс приложения.
         .preferredColorScheme(.light)
+    }
+}
+
+
+// MARK: - ШТРИХИ ЛИНЕЙКИ
+
+private struct RulerTicks: View {
+
+    let rulerWidth: CGFloat
+    let screenHeight: CGFloat
+    let zeroY: CGFloat
+    let pointsPerMillimeter: CGFloat
+
+    var body: some View {
+
+        ZStack(alignment: .topLeading) {
+
+            ForEach(
+                0...160,
+                id: \.self
+            ) { millimeter in
+
+                let y =
+                    zeroY
+                    - CGFloat(millimeter) * pointsPerMillimeter
+
+                let isTen = millimeter % 10 == 0
+                let isFive = millimeter % 5 == 0
+
+                let tickLength: CGFloat =
+                    isTen
+                    ? rulerWidth * 0.92
+                    : isFive
+                        ? rulerWidth * 0.70
+                        : rulerWidth * 0.48
+
+                let lineWidth: CGFloat =
+                    isTen
+                    ? 2.2
+                    : isFive
+                        ? 1.6
+                        : 1.2
+
+                if y >= -3 && y <= screenHeight + 3 {
+
+                    TickPair(
+                        rulerWidth: rulerWidth,
+                        y: y,
+                        tickLength: tickLength,
+                        lineWidth: lineWidth
+                    )
+                }
+            }
+        }
+    }
+}
+
+
+// MARK: - ПАРА ШТРИХОВ
+
+private struct TickPair: View {
+
+    let rulerWidth: CGFloat
+    let y: CGFloat
+    let tickLength: CGFloat
+    let lineWidth: CGFloat
+
+    var body: some View {
+
+        ZStack(alignment: .topLeading) {
+
+            // Левый штрих.
+            Rectangle()
+                .fill(Color.black)
+                .frame(
+                    width: tickLength,
+                    height: lineWidth
+                )
+                .position(
+                    x: tickLength / 2,
+                    y: y
+                )
+
+            // Правый штрих.
+            Rectangle()
+                .fill(Color.black)
+                .frame(
+                    width: tickLength,
+                    height: lineWidth
+                )
+                .position(
+                    x: rulerWidth - tickLength / 2,
+                    y: y
+                )
+        }
+    }
+}
+
+
+// MARK: - ЦИФРЫ
+
+private struct RulerNumbers: View {
+
+    let rulerWidth: CGFloat
+    let screenHeight: CGFloat
+    let zeroY: CGFloat
+    let pointsPerMillimeter: CGFloat
+
+    var body: some View {
+
+        ZStack(alignment: .topLeading) {
+
+            ForEach(
+                0...16,
+                id: \.self
+            ) { index in
+
+                let millimeter = index * 10
+
+                let y =
+                    zeroY
+                    - CGFloat(millimeter) * pointsPerMillimeter
+
+                if y >= -35 && y <= screenHeight + 35 {
+
+                    Text("\(millimeter)")
+                        .font(
+                            .system(
+                                size: 27,
+                                weight: .bold,
+                                design: .monospaced
+                            )
+                        )
+                        .foregroundStyle(Color.black)
+                        .frame(
+                            width: rulerWidth,
+                            height: 34
+                        )
+                        .position(
+                            x: rulerWidth / 2,
+                            y: y
+                        )
+                }
+            }
+        }
+    }
+}
+
+
+// MARK: - ПОЛЗУНОК
+
+private struct ZeroSliderPanel: View {
+
+    @Binding var value: Double
+
+    var body: some View {
+
+        HStack(spacing: 12) {
+
+            Text(
+                "0: \(Int(value)) мм"
+            )
+            .font(
+                .system(
+                    size: 15,
+                    weight: .semibold,
+                    design: .rounded
+                )
+            )
+            .foregroundStyle(Color.black)
+
+            Slider(
+                value: $value,
+                in: 0...80,
+                step: 1
+            )
+            .frame(
+                width: 190
+            )
+            .tint(Color.black)
+        }
+        .padding(
+            .horizontal,
+            16
+        )
+        .padding(
+            .vertical,
+            10
+        )
+        .background(
+            Color.white.opacity(0.95)
+        )
+        .clipShape(
+            RoundedRectangle(
+                cornerRadius: 14
+            )
+        )
+        .shadow(
+            color: .black.opacity(0.18),
+            radius: 8
+        )
     }
 }
