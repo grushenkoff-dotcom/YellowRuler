@@ -22,7 +22,9 @@ jobs:
       - name: Show project
         run: |
           xcodebuild -project YellowRuler.xcodeproj -list
-
+- name: Show project
+  run: |
+    xcodebuild -project YellowRuler.xcodeproj -list
       - name: Build
         run: |
           xcodebuild \
