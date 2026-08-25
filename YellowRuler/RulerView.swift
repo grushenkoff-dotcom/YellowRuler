@@ -2,106 +2,447 @@ import SwiftUI
 import UIKit
 
 struct RulerView: View {
-    @AppStorage("pixelsPerMillimeter") private var pixelsPerMillimeter: Double = 0
+
+    // MARK: - Saved settings
+
+    @AppStorage("pixelsPerMillimeter")
+    private var pixelsPerMillimeter: Double = 0
+
+    @AppStorage("rulerFontSize")
+    private var rulerFontSize: Double = 24
+
+    @AppStorage("rulerFontDesign")
+    private var rulerFontDesign: String = "default"
+
     @State private var showCalibration = false
 
+    // MARK: - Body
+
     var body: some View {
+
         GeometryReader { geo in
-            let scale = pixelsPerMillimeter > 0 ? pixelsPerMillimeter : UIScreen.main.scale * 3.0
 
-            ZStack {
-                Color.yellow.ignoresSafeArea()
+            let rulerWidth = geo.size.width / 3.0
 
-                VStack(spacing: 0) {
+            ZStack(alignment: .leading) {
+
+                // Остальная часть экрана полностью прозрачна.
+                Color.clear
+                    .ignoresSafeArea()
+
+                // MARK: Ruler
+
+                RulerScaleView(
+                    width: rulerWidth,
+                    height: geo.size.height,
+                    pixelsPerMillimeter: calibratedScale,
+                    fontSize: rulerFontSize,
+                    fontDesign: selectedFontDesign
+                )
+                .frame(
+                    width: rulerWidth,
+                    height: geo.size.height
+                )
+                .clipped()
+
+                // MARK: Menu button
+
+                VStack {
                     HStack {
-                        Text("YELLOW RULER")
-                            .font(.system(size: 13, weight: .bold, design: .monospaced))
                         Spacer()
-                        Button("Калибровка") {
-                            showCalibration = true
-                        }
-                        .font(.system(size: 13, weight: .semibold))
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(.yellow.opacity(0.92))
 
-                    Spacer(minLength: 0)
+                        Menu {
 
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 0) {
-                            ForEach(0...150, id: \.self) { mm in
-                                VStack(spacing: 5) {
-                                    Rectangle()
-                                        .fill(.black)
-                                        .frame(
-                                            width: 1,
-                                            height: mm % 10 == 0 ? 72 : (mm % 5 == 0 ? 52 : 30)
-                                        )
-                                    if mm % 10 == 0 {
-                                        Text("\(mm)")
-                                            .font(.system(size: 14, weight: .medium, design: .monospaced))
-                                    }
+                            Section("Размер цифр") {
+
+                                Button("16 pt") {
+                                    rulerFontSize = 16
                                 }
-                                .frame(width: max(1, scale), alignment: .leading)
+
+                                Button("20 pt") {
+                                    rulerFontSize = 20
+                                }
+
+                                Button("24 pt") {
+                                    rulerFontSize = 24
+                                }
+
+                                Button("28 pt") {
+                                    rulerFontSize = 28
+                                }
+
+                                Button("32 pt") {
+                                    rulerFontSize = 32
+                                }
+
+                                Button("36 pt") {
+                                    rulerFontSize = 36
+                                }
+
+                                Button("42 pt") {
+                                    rulerFontSize = 42
+                                }
                             }
+
+                            Section("Шрифт") {
+
+                                Button {
+                                    rulerFontDesign = "default"
+                                } label: {
+                                    Label(
+                                        "Обычный",
+                                        systemImage:
+                                            rulerFontDesign == "default"
+                                            ? "checkmark"
+                                            : ""
+                                    )
+                                }
+
+                                Button {
+                                    rulerFontDesign = "rounded"
+                                } label: {
+                                    Label(
+                                        "Закруглённый",
+                                        systemImage:
+                                            rulerFontDesign == "rounded"
+                                            ? "checkmark"
+                                            : ""
+                                    )
+                                }
+
+                                Button {
+                                    rulerFontDesign = "serif"
+                                } label: {
+                                    Label(
+                                        "С засечками",
+                                        systemImage:
+                                            rulerFontDesign == "serif"
+                                            ? "checkmark"
+                                            : ""
+                                    )
+                                }
+
+                                Button {
+                                    rulerFontDesign = "monospaced"
+                                } label: {
+                                    Label(
+                                        "Моноширинный",
+                                        systemImage:
+                                            rulerFontDesign == "monospaced"
+                                            ? "checkmark"
+                                            : ""
+                                    )
+                                }
+                            }
+
+                            Divider()
+
+                            Button {
+                                showCalibration = true
+                            } label: {
+                                Label(
+                                    "Калибровка",
+                                    systemImage: "ruler"
+                                )
+                            }
+
+                        } label: {
+
+                            Image(systemName: "ellipsis")
+                                .font(
+                                    .system(
+                                        size: 20,
+                                        weight: .bold
+                                    )
+                                )
+                                .foregroundStyle(.primary)
+                                .frame(
+                                    width: 52,
+                                    height: 52
+                                )
+                                .background(
+                                    .ultraThinMaterial
+                                )
+                                .clipShape(Circle())
                         }
-                        .padding(.horizontal, 16)
+
+                        .padding(.trailing, 18)
+                        .padding(.top, 14)
                     }
-                    .frame(height: 105)
 
-                    Spacer(minLength: 0)
-
-                    Text("мм • 1 мм")
-                        .font(.system(size: 12, weight: .medium, design: .monospaced))
-                        .padding(.bottom, 10)
+                    Spacer()
                 }
-            }
-            .sheet(isPresented: $showCalibration) {
-                CalibrationView(current: pixelsPerMillimeter) { value in
-                    pixelsPerMillimeter = value
-                    showCalibration = false
-                }
-                .presentationDetents([.medium])
             }
         }
-        .preferredColorScheme(.light)
+
+        .sheet(isPresented: $showCalibration) {
+
+            CalibrationView(
+                current: pixelsPerMillimeter
+            ) { value in
+
+                pixelsPerMillimeter = value
+                showCalibration = false
+            }
+
+            .presentationDetents([.medium])
+        }
+    }
+
+    // MARK: - Calibration
+
+    private var calibratedScale: Double {
+
+        if pixelsPerMillimeter > 0 {
+            return pixelsPerMillimeter
+        }
+
+        // Временный масштаб до первой калибровки.
+        return 3.78
+    }
+
+    // MARK: - Font
+
+    private var selectedFontDesign: Font.Design {
+
+        switch rulerFontDesign {
+
+        case "rounded":
+            return .rounded
+
+        case "serif":
+            return .serif
+
+        case "monospaced":
+            return .monospaced
+
+        default:
+            return .default
+        }
     }
 }
 
+
+// MARK: - Ruler Scale
+
+struct RulerScaleView: View {
+
+    let width: CGFloat
+    let height: CGFloat
+    let pixelsPerMillimeter: Double
+    let fontSize: Double
+    let fontDesign: Font.Design
+
+    var body: some View {
+
+        Canvas { context, size in
+
+            let scale =
+                CGFloat(pixelsPerMillimeter)
+
+            let totalMillimeters =
+                Int(ceil(Double(height) / pixelsPerMillimeter))
+
+            // Линейка занимает всю свою ширину.
+            // Фон самой линейки слегка прозрачный,
+            // всё остальное остаётся прозрачным.
+
+            context.fill(
+                Path(
+                    CGRect(
+                        x: 0,
+                        y: 0,
+                        width: width,
+                        height: height
+                    )
+                ),
+                with: .color(
+                    Color.yellow.opacity(0.42)
+                )
+            )
+
+            for mm in 0...totalMillimeters {
+
+                let y =
+                    CGFloat(mm) * scale
+
+                if y > height {
+                    break
+                }
+
+                let isCentimeter =
+                    mm % 10 == 0
+
+                let isFiveMillimeter =
+                    mm % 5 == 0
+
+                // Длина штриха.
+                let tickWidth: CGFloat
+
+                if isCentimeter {
+
+                    tickWidth = width * 0.72
+
+                } else if isFiveMillimeter {
+
+                    tickWidth = width * 0.52
+
+                } else {
+
+                    tickWidth = width * 0.32
+                }
+
+                let lineWidth: CGFloat =
+                    isCentimeter ? 2.0 : 1.0
+
+                var tick = Path()
+
+                tick.move(
+                    to: CGPoint(
+                        x: width - tickWidth,
+                        y: y
+                    )
+                )
+
+                tick.addLine(
+                    to: CGPoint(
+                        x: width,
+                        y: y
+                    )
+                )
+
+                context.stroke(
+                    tick,
+                    with: .color(.black),
+                    lineWidth: lineWidth
+                )
+
+                // MARK: Numbers
+
+                if isCentimeter {
+
+                    let centimeter =
+                        mm / 10
+
+                    let text =
+                        Text("\(centimeter)")
+                            .font(
+                                .system(
+                                    size: fontSize,
+                                    weight: .medium,
+                                    design: fontDesign
+                                )
+                            )
+                            .foregroundStyle(.black)
+
+                    let resolved =
+                        context.resolve(text)
+
+                    // Число строго по центру всей
+                    // ширины линейки.
+                    let centerX =
+                        width / 2.0
+
+                    context.draw(
+                        resolved,
+                        at: CGPoint(
+                            x: centerX,
+                            y: y
+                        ),
+                        anchor: .center
+                    )
+                }
+            }
+        }
+    }
+}
+
+
+// MARK: - Calibration
+
 struct CalibrationView: View {
+
     let current: Double
+
     let onSave: (Double) -> Void
+
     @State private var millimeters = "100"
     @State private var pixels = ""
 
     var body: some View {
+
         NavigationStack {
+
             Form {
+
                 Section("Калибровка") {
-                    Text("Положи на экран обычную линейку или банковскую карту и измерь, сколько пикселей соответствует известной длине.")
-                    TextField("Длина в мм", text: $millimeters)
-                        .keyboardType(.decimalPad)
-                    TextField("Длина в пикселях", text: $pixels)
-                        .keyboardType(.decimalPad)
+
+                    Text(
+                        """
+                        Положи на экран обычную линейку \
+                        или банковскую карту и измерь \
+                        известную длину.
+                        """
+                    )
+
+                    TextField(
+                        "Длина в мм",
+                        text: $millimeters
+                    )
+                    .keyboardType(.decimalPad)
+
+                    TextField(
+                        "Длина в пикселях",
+                        text: $pixels
+                    )
+                    .keyboardType(.decimalPad)
                 }
 
                 if current > 0 {
+
                     Section {
-                        Text("Текущее значение: \(current, specifier: "%.3f") px/мм")
+
+                        Text(
+                            "Текущее значение: " +
+                            "\(current, specifier: "%.3f") px/мм"
+                        )
                     }
                 }
 
-                Button("Сохранить") {
-                    guard
-                        let mm = Double(millimeters.replacingOccurrences(of: ",", with: ".")),
-                        let px = Double(pixels.replacingOccurrences(of: ",", with: ".")),
-                        mm > 0, px > 0
-                    else { return }
-                    onSave(px / mm)
+                Section {
+
+                    Button("Сохранить") {
+
+                        let mmString =
+                            millimeters
+                                .replacingOccurrences(
+                                    of: ",",
+                                    with: "."
+                                )
+
+                        let pxString =
+                            pixels
+                                .replacingOccurrences(
+                                    of: ",",
+                                    with: "."
+                                )
+
+                        guard
+                            let mm = Double(mmString),
+                            let px = Double(pxString),
+                            mm > 0,
+                            px > 0
+                        else {
+                            return
+                        }
+
+                        onSave(px / mm)
+                    }
                 }
             }
+
             .navigationTitle("Калибровка")
+            .navigationBarTitleDisplayMode(.inline)
         }
     }
 }
