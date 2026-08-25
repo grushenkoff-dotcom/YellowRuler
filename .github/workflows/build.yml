@@ -22,9 +22,7 @@ jobs:
       - name: Show project
         run: |
           xcodebuild -project YellowRuler.xcodeproj -list
-- name: Show project
-  run: |
-    xcodebuild -project YellowRuler.xcodeproj -list
+
       - name: Build
         run: |
           xcodebuild \
@@ -39,6 +37,7 @@ jobs:
 
       - name: Package IPA
         run: |
+          rm -rf Payload
           mkdir -p Payload
           cp -R build/Build/Products/Release-iphoneos/YellowRuler.app Payload/
           zip -qry YellowRuler-unsigned.ipa Payload
