@@ -1,172 +1,255 @@
 import SwiftUI
 
 struct RulerView: View {
-    @AppStorage("rulerWidthRatio") private var rulerWidthRatio: Double = 0.33
-    @AppStorage("zeroOffsetMM") private var zeroOffsetMM: Double = 0
-    @AppStorage("tickLength") private var tickLength: Double = 18
-    @AppStorage("tickWidth") private var tickWidth: Double = 2
-    @AppStorage("numberFontSize") private var numberFontSize: Double = 28
-    @AppStorage("fontDesign") private var fontDesign: String = "rounded"
-    @AppStorage("fontWeight") private var fontWeight: String = "bold"
-    @AppStorage("showZeroSlider") private var showZeroSlider: Bool = true
-    @AppStorage("mmSpacing") private var mmSpacing: Double = 10
-    @AppStorage("numberEveryMM") private var numberEveryMM: Double = 10
-    @AppStorage("rulerColorMode") private var rulerColorMode: String = "yellow"
+
+    // MARK: - Настройки
+
+    @AppStorage("rulerWidthRatio")
+    private var rulerWidthRatio: Double = 0.33
+
+    @AppStorage("zeroOffsetMM")
+    private var zeroOffsetMM: Double = 0
+
+    @AppStorage("tickLength")
+    private var tickLength: Double = 18
+
+    @AppStorage("tickWidth")
+    private var tickWidth: Double = 2
+
+    @AppStorage("numberFontSize")
+    private var numberFontSize: Double = 28
+
+    @AppStorage("fontDesign")
+    private var fontDesign: String = "rounded"
+
+    @AppStorage("fontWeight")
+    private var fontWeight: String = "bold"
+
+    @AppStorage("showZeroSlider")
+    private var showZeroSlider: Bool = true
+
+    @AppStorage("mmSpacing")
+    private var mmSpacing: Double = 10
+
+    @AppStorage("numberEveryMM")
+    private var numberEveryMM: Double = 10
+
+    @AppStorage("rulerColorMode")
+    private var rulerColorMode: String = "yellow"
 
     @State private var showingSettings = false
 
+    // MARK: - Основной экран
+
     var body: some View {
         GeometryReader { geometry in
-            rulerContent(size: geometry.size)
+            rulerView(
+                width: geometry.size.width,
+                height: geometry.size.height
+            )
         }
+        .ignoresSafeArea()
         .sheet(isPresented: $showingSettings) {
-            SettingsView()
+            RulerSettingsView()
         }
     }
 
-    @ViewBuilder
-    private func rulerContent(size: CGSize) -> some View {
-        let rulerWidth = max(1, size.width * rulerWidthRatio)
-        let centerX = size.width / 2
-        let centerY = size.height / 2
+    // MARK: - Линейка
 
-        ZStack {
+    private func rulerView(
+        width: CGFloat,
+        height: CGFloat
+    ) -> some View {
+
+        let rulerWidth = width * rulerWidthRatio
+        let centerX = width / 2
+        let centerY = height / 2
+
+        return ZStack {
+
+            // Прозрачный фон
             Color.clear
-                .ignoresSafeArea()
 
+            // Сама жёлтая линейка
             Rectangle()
                 .fill(rulerColor)
-                .frame(width: rulerWidth, height: size.height)
+                .frame(
+                    width: rulerWidth,
+                    height: height
+                )
                 .position(
                     x: centerX,
                     y: centerY
                 )
 
-            RulerTicks(
+            // Штрихи
+            RulerTickLayer(
                 rulerWidth: rulerWidth,
-                height: size.height,
+                height: height,
                 centerX: centerX,
                 centerY: centerY,
-                pxPerMM: mmSpacing,
+                mmSpacing: mmSpacing,
                 tickLength: tickLength,
                 tickWidth: tickWidth,
                 zeroOffsetMM: zeroOffsetMM
             )
 
-            RulerNumbers(
-                height: size.height,
+            // Цифры
+            RulerNumberLayer(
+                height: height,
                 centerX: centerX,
                 centerY: centerY,
-                pxPerMM: mmSpacing,
-                everyMM: numberEveryMM,
+                mmSpacing: mmSpacing,
+                numberEveryMM: numberEveryMM,
                 zeroOffsetMM: zeroOffsetMM,
                 fontSize: numberFontSize,
                 fontDesign: fontDesign,
                 fontWeight: fontWeight
             )
 
+            // Ползунок нуля
             if showZeroSlider {
-                ZeroSliderPanel(
+                ZeroSliderView(
                     zeroOffsetMM: $zeroOffsetMM
                 )
                 .position(
                     x: centerX,
-                    y: size.height - 65
+                    y: height - 55
                 )
             }
 
-            settingsButton(size: size)
+            // Кнопка настроек
+            settingsButton(
+                width: width
+            )
         }
-        .ignoresSafeArea()
     }
 
-    private func settingsButton(size: CGSize) -> some View {
+    // MARK: - Кнопка настроек
+
+    private func settingsButton(width: CGFloat) -> some View {
         Button {
             showingSettings = true
         } label: {
             Image(systemName: "gearshape.fill")
-                .font(.system(size: 19, weight: .semibold))
+                .font(
+                    .system(
+                        size: 20,
+                        weight: .semibold
+                    )
+                )
                 .foregroundStyle(.black)
-                .frame(width: 44, height: 44)
-                .background(Color.white.opacity(0.92))
+                .frame(
+                    width: 46,
+                    height: 46
+                )
+                .background(
+                    Color.white.opacity(0.94)
+                )
                 .clipShape(Circle())
-                .shadow(radius: 4)
+                .shadow(
+                    radius: 5
+                )
         }
         .position(
-            x: size.width - 32,
-            y: 32
+            x: width - 34,
+            y: 40
         )
     }
+
+    // MARK: - Цвет линейки
 
     private var rulerColor: Color {
         switch rulerColorMode {
         case "white":
             return .white
+
         case "black":
             return .black
+
         default:
             return .yellow
         }
     }
 }
 
-// MARK: - Штрихи
 
-private struct RulerTicks: View {
+// MARK: - ШТРИХИ
+
+private struct RulerTickLayer: View {
+
     let rulerWidth: CGFloat
     let height: CGFloat
     let centerX: CGFloat
     let centerY: CGFloat
-    let pxPerMM: CGFloat
-    let tickLength: CGFloat
-    let tickWidth: CGFloat
+
+    let mmSpacing: Double
+    let tickLength: Double
+    let tickWidth: Double
     let zeroOffsetMM: Double
 
-    private let majorEvery = 10
-    private let mediumEvery = 5
-
     var body: some View {
-        let visibleMM = calculateVisibleMM()
+
+        let visibleMM = visibleMillimeters()
+
+        let values = Array(
+            -visibleMM...visibleMM
+        )
 
         ZStack {
+
             ForEach(
-                -visibleMM...visibleMM,
+                values,
                 id: \.self
             ) { mm in
 
-                tickView(for: mm)
+                tick(
+                    millimeter: mm
+                )
             }
         }
         .allowsHitTesting(false)
     }
 
-    private func calculateVisibleMM() -> Int {
-        guard pxPerMM > 0 else {
+    private func visibleMillimeters() -> Int {
+
+        guard mmSpacing > 0 else {
             return 100
         }
 
+        let halfHeight =
+            Double(height) /
+            mmSpacing /
+            2.0
+
         return Int(
-            ceil(
-                Double(height / pxPerMM) / 2.0
-            )
+            ceil(halfHeight)
         ) + 3
     }
 
-    @ViewBuilder
-    private func tickView(for mm: Int) -> some View {
+    private func tick(
+        millimeter mm: Int
+    ) -> some View {
+
         let y =
             centerY +
             CGFloat(
-                Double(mm) - zeroOffsetMM
-            ) * pxPerMM
+                (Double(mm) - zeroOffsetMM)
+                * mmSpacing
+            )
 
-        let length = tickLengthFor(mm)
+        let length = tickLengthFor(
+            millimeter: mm
+        )
 
-        Rectangle()
+        return Rectangle()
             .fill(Color.black)
             .frame(
                 width: length,
-                height: max(0.5, tickWidth)
+                height: max(
+                    0.5,
+                    tickWidth
+                )
             )
             .position(
                 x: centerX,
@@ -174,18 +257,30 @@ private struct RulerTicks: View {
             )
     }
 
-    private func tickLengthFor(_ mm: Int) -> CGFloat {
-        if mm % majorEvery == 0 {
+    private func tickLengthFor(
+        millimeter mm: Int
+    ) -> CGFloat {
+
+        // Каждые 10 мм —
+        // штрих на всю ширину линейки.
+        if mm % 10 == 0 {
             return rulerWidth
         }
 
-        if mm % mediumEvery == 0 {
+        // 5 мм —
+        // длинный штрих.
+        if mm % 5 == 0 {
             return min(
                 rulerWidth,
-                tickLength * 0.72
+                max(
+                    tickLength,
+                    rulerWidth * 0.65
+                )
             )
         }
 
+        // Остальные миллиметры —
+        // короткий штрих.
         return min(
             rulerWidth,
             tickLength
@@ -193,75 +288,88 @@ private struct RulerTicks: View {
     }
 }
 
-// MARK: - Цифры
 
-private struct RulerNumbers: View {
+// MARK: - ЦИФРЫ
+
+private struct RulerNumberLayer: View {
+
     let height: CGFloat
     let centerX: CGFloat
     let centerY: CGFloat
-    let pxPerMM: CGFloat
-    let everyMM: Double
+
+    let mmSpacing: Double
+    let numberEveryMM: Double
     let zeroOffsetMM: Double
-    let fontSize: CGFloat
+
+    let fontSize: Double
     let fontDesign: String
     let fontWeight: String
 
     var body: some View {
-        let visibleMM = calculateVisibleMM()
-        let step = calculateStep()
+
+        let visibleMM = visibleMillimeters()
+
+        let step = max(
+            1,
+            Int(numberEveryMM.rounded())
+        )
+
+        let values = Array(
+            -visibleMM...visibleMM
+        )
+        .filter {
+            $0 % step == 0
+        }
 
         ZStack {
+
             ForEach(
-                stride(
-                    from: -visibleMM,
-                    through: visibleMM,
-                    by: step
-                ),
+                values,
                 id: \.self
             ) { mm in
 
-                numberView(for: mm)
+                number(
+                    millimeter: mm
+                )
             }
         }
         .allowsHitTesting(false)
     }
 
-    private func calculateVisibleMM() -> Int {
-        guard pxPerMM > 0 else {
+    private func visibleMillimeters() -> Int {
+
+        guard mmSpacing > 0 else {
             return 100
         }
 
+        let halfHeight =
+            Double(height) /
+            mmSpacing /
+            2.0
+
         return Int(
-            ceil(
-                Double(height / pxPerMM) / 2.0
-            )
+            ceil(halfHeight)
         ) + 3
     }
 
-    private func calculateStep() -> Int {
-        max(
-            1,
-            Int(everyMM.rounded())
-        )
-    }
+    private func number(
+        millimeter mm: Int
+    ) -> some View {
 
-    @ViewBuilder
-    private func numberView(for mm: Int) -> some View {
         let y =
             centerY +
             CGFloat(
-                Double(mm) - zeroOffsetMM
-            ) * pxPerMM
+                (Double(mm) - zeroOffsetMM)
+                * mmSpacing
+            )
 
-        Text(
-            mm == 0
-                ? "0"
-                : "\(mm)"
+        return Text(
+            "\(mm)"
         )
         .font(numberFont)
         .foregroundStyle(Color.black)
         .frame(
-            width: 100,
+            width: 110,
             height: fontSize + 12
         )
         .position(
@@ -271,11 +379,14 @@ private struct RulerNumbers: View {
     }
 
     private var numberFont: Font {
+
         let design: Font.Design
 
-        if fontDesign == "monospaced" {
+        switch fontDesign {
+        case "monospaced":
             design = .monospaced
-        } else {
+
+        default:
             design = .rounded
         }
 
@@ -284,8 +395,10 @@ private struct RulerNumbers: View {
         switch fontWeight {
         case "regular":
             weight = .regular
+
         case "semibold":
             weight = .semibold
+
         default:
             weight = .bold
         }
@@ -298,19 +411,22 @@ private struct RulerNumbers: View {
     }
 }
 
-// MARK: - Ползунок нуля
 
-private struct ZeroSliderPanel: View {
+// MARK: - ПОЛЗУНОК НУЛЯ
+
+private struct ZeroSliderView: View {
+
     @Binding var zeroOffsetMM: Double
 
     var body: some View {
+
         HStack(spacing: 10) {
+
             Text("0")
                 .font(
                     .system(
                         size: 15,
-                        weight: .bold,
-                        design: .rounded
+                        weight: .bold
                     )
                 )
 
@@ -322,7 +438,7 @@ private struct ZeroSliderPanel: View {
             .tint(.yellow)
 
             Text(
-                "\(Int(zeroOffsetMM)) mm"
+                "\(Int(zeroOffsetMM)) мм"
             )
             .font(
                 .system(
@@ -336,17 +452,316 @@ private struct ZeroSliderPanel: View {
                 alignment: .trailing
             )
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .frame(width: 300)
+        .padding(
+            .horizontal,
+            14
+        )
+        .padding(
+            .vertical,
+            9
+        )
+        .frame(
+            width: 300
+        )
         .background(
-            Color.white.opacity(0.94)
+            Color.white.opacity(0.95)
         )
         .clipShape(
             RoundedRectangle(
                 cornerRadius: 14
             )
         )
-        .shadow(radius: 5)
+        .shadow(
+            radius: 5
+        )
+    }
+}
+
+
+// MARK: - ЭКРАН НАСТРОЕК
+// Встроен непосредственно в RulerView.swift.
+
+private struct RulerSettingsView: View {
+
+    @Environment(\.dismiss)
+    private var dismiss
+
+    @AppStorage("rulerWidthRatio")
+    private var rulerWidthRatio: Double = 0.33
+
+    @AppStorage("zeroOffsetMM")
+    private var zeroOffsetMM: Double = 0
+
+    @AppStorage("tickLength")
+    private var tickLength: Double = 18
+
+    @AppStorage("tickWidth")
+    private var tickWidth: Double = 2
+
+    @AppStorage("numberFontSize")
+    private var numberFontSize: Double = 28
+
+    @AppStorage("fontDesign")
+    private var fontDesign: String = "rounded"
+
+    @AppStorage("fontWeight")
+    private var fontWeight: String = "bold"
+
+    @AppStorage("showZeroSlider")
+    private var showZeroSlider: Bool = true
+
+    @AppStorage("mmSpacing")
+    private var mmSpacing: Double = 10
+
+    @AppStorage("numberEveryMM")
+    private var numberEveryMM: Double = 10
+
+    @AppStorage("rulerColorMode")
+    private var rulerColorMode: String = "yellow"
+
+    var body: some View {
+
+        NavigationStack {
+
+            Form {
+
+                // MARK: Линейка
+
+                Section("Линейка") {
+
+                    settingSlider(
+                        title: "Ширина",
+                        value: $rulerWidthRatio,
+                        range: 0.10...1.00,
+                        step: 0.01,
+                        text: "\(Int(rulerWidthRatio * 100)) %"
+                    )
+
+                    settingSlider(
+                        title: "Масштаб",
+                        value: $mmSpacing,
+                        range: 4...20,
+                        step: 0.5,
+                        text: String(
+                            format: "%.1f pt/мм",
+                            mmSpacing
+                        )
+                    )
+
+                    Picker(
+                        "Цвет",
+                        selection: $rulerColorMode
+                    ) {
+
+                        Text("Жёлтый")
+                            .tag("yellow")
+
+                        Text("Белый")
+                            .tag("white")
+
+                        Text("Чёрный")
+                            .tag("black")
+                    }
+                }
+
+                // MARK: Ноль
+
+                Section("Ноль") {
+
+                    settingSlider(
+                        title: "Положение 0",
+                        value: $zeroOffsetMM,
+                        range: -100...100,
+                        step: 1,
+                        text: "\(Int(zeroOffsetMM)) мм"
+                    )
+
+                    Toggle(
+                        "Показывать ползунок нуля",
+                        isOn: $showZeroSlider
+                    )
+
+                    Button(
+                        "Вернуть 0 в центр"
+                    ) {
+                        zeroOffsetMM = 0
+                    }
+                }
+
+                // MARK: Штрихи
+
+                Section("Штрихи") {
+
+                    settingSlider(
+                        title: "Длина коротких",
+                        value: $tickLength,
+                        range: 4...60,
+                        step: 1,
+                        text: "\(Int(tickLength)) pt"
+                    )
+
+                    settingSlider(
+                        title: "Толщина",
+                        value: $tickWidth,
+                        range: 0.5...5,
+                        step: 0.5,
+                        text: String(
+                            format: "%.1f pt",
+                            tickWidth
+                        )
+                    )
+                }
+
+                // MARK: Цифры
+
+                Section("Цифры") {
+
+                    settingSlider(
+                        title: "Размер",
+                        value: $numberFontSize,
+                        range: 12...60,
+                        step: 1,
+                        text: "\(Int(numberFontSize)) pt"
+                    )
+
+                    Picker(
+                        "Шрифт",
+                        selection: $fontDesign
+                    ) {
+
+                        Text("Округлый")
+                            .tag("rounded")
+
+                        Text("Моноширинный")
+                            .tag("monospaced")
+                    }
+
+                    Picker(
+                        "Начертание",
+                        selection: $fontWeight
+                    ) {
+
+                        Text("Обычный")
+                            .tag("regular")
+
+                        Text("Полужирный")
+                            .tag("semibold")
+
+                        Text("Жирный")
+                            .tag("bold")
+                    }
+
+                    settingSlider(
+                        title: "Шаг цифр",
+                        value: $numberEveryMM,
+                        range: 5...50,
+                        step: 5,
+                        text: "каждые \(Int(numberEveryMM)) мм"
+                    )
+                }
+
+                // MARK: Сброс
+
+                Section {
+
+                    Button(
+                        "Сбросить все настройки",
+                        role: .destructive
+                    ) {
+                        resetDefaults()
+                    }
+
+                } footer: {
+
+                    Text(
+                        "После изменения настройки применяются сразу."
+                    )
+                }
+            }
+            .navigationTitle(
+                "Настройки линейки"
+            )
+            .navigationBarTitleDisplayMode(
+                .inline
+            )
+            .toolbar {
+
+                ToolbarItem(
+                    placement: .confirmationAction
+                ) {
+
+                    Button("Готово") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: Ползунок настройки
+
+    private func settingSlider(
+        title: String,
+        value: Binding<Double>,
+        range: ClosedRange<Double>,
+        step: Double,
+        text: String
+    ) -> some View {
+
+        VStack(
+            alignment: .leading,
+            spacing: 5
+        ) {
+
+            HStack {
+
+                Text(title)
+
+                Spacer()
+
+                Text(text)
+                    .foregroundStyle(
+                        .secondary
+                    )
+                    .monospacedDigit()
+            }
+
+            Slider(
+                value: value,
+                in: range,
+                step: step
+            )
+        }
+        .padding(
+            .vertical,
+            3
+        )
+    }
+
+    // MARK: Сброс
+
+    private func resetDefaults() {
+
+        rulerWidthRatio = 0.33
+
+        zeroOffsetMM = 0
+
+        tickLength = 18
+
+        tickWidth = 2
+
+        numberFontSize = 28
+
+        fontDesign = "rounded"
+
+        fontWeight = "bold"
+
+        showZeroSlider = true
+
+        mmSpacing = 10
+
+        numberEveryMM = 10
+
+        rulerColorMode = "yellow"
     }
 }
